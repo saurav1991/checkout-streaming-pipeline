@@ -1,0 +1,159 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Producer Throughput (events/sec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(producer_events_total{job=\"producer\"}[1m])",
+          "legendFormat": "events/sec"
+        }
+      ]
+    },
+    {
+      "title": "Producer Errors",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(producer_errors_total{job=\"producer\"}[1m])",
+          "legendFormat": "errors/sec"
+        }
+      ]
+    },
+    {
+      "title": "Consumer Lag by Group",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (consumergroup) (kafka_consumergroup_lag)",
+          "legendFormat": "{{consumergroup}}"
+        }
+      ]
+    },
+    {
+      "title": "Raw Consumer Throughput (events/sec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(raw_consumer_events_total{job=\"raw-consumer\"}[1m])",
+          "legendFormat": "events/sec"
+        }
+      ]
+    },
+    {
+      "title": "Agg Sink Throughput (records/sec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(agg_sink_records_total{job=\"agg-sink\"}[1m])",
+          "legendFormat": "records/sec"
+        }
+      ]
+    },
+    {
+      "title": "Buffer Sizes",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "raw_consumer_buffer_size{job=\"raw-consumer\"}",
+          "legendFormat": "raw-consumer"
+        },
+        {
+          "expr": "agg_sink_buffer_size{job=\"agg-sink\"}",
+          "legendFormat": "agg-sink"
+        }
+      ]
+    },
+    {
+      "title": "Flush Size Distribution",
+      "type": "histogram",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(raw_consumer_flush_size_sum{job=\"raw-consumer\"}[5m]) / rate(raw_consumer_flush_size_count{job=\"raw-consumer\"}[5m])",
+          "legendFormat": "raw avg flush size"
+        },
+        {
+          "expr": "rate(agg_sink_flush_size_sum{job=\"agg-sink\"}[5m]) / rate(agg_sink_flush_size_count{job=\"agg-sink\"}[5m])",
+          "legendFormat": "agg avg flush size"
+        }
+      ]
+    },
+    {
+      "title": "Flush Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "" },
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "rate(raw_consumer_flushes_total{job=\"raw-consumer\"}[1m])",
+          "legendFormat": "raw-consumer flushes/sec"
+        },
+        {
+          "expr": "rate(agg_sink_flushes_total{job=\"agg-sink\"}[1m])",
+          "legendFormat": "agg-sink flushes/sec"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["streaming", "kafka", "pipeline"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "Pageview Pipeline",
+  "uid": "pageview-pipeline",
+  "version": 1
+}

@@ -1,0 +1,42 @@
+import json
+
+import pytest
+
+from src.agg_sink import agg_to_file_key, flush_buffer, parse_agg_record
+
+pytestmark = pytest.mark.unit
+
+
+def test_parse_agg_record(sample_agg_record):
+    result = parse_agg_record(json.dumps(sample_agg_record))
+    assert result["postcode"] == "SW19"
+    assert result["window_start"] == "2021-01-26T12:04:00+00:00"
+    assert result["window_end"] == "2021-01-26T12:05:00+00:00"
+    assert result["pageview_count"] == 42
+
+
+def test_agg_to_file_key():
+    record = {"window_start": "2021-01-26T14:24:00+00:00"}
+    assert agg_to_file_key(record) == "2021-01-26/14-24"
+
+
+def test_agg_to_file_key_midnight():
+    record = {"window_start": "2021-01-26T00:00:00+00:00"}
+    assert agg_to_file_key(record) == "2021-01-26/00-00"
+
+
+def test_agg_flush_buffer(tmp_output_dir):
+    record = {
+        "postcode": "SW19",
+        "window_start": "2021-01-26T14:24:00+00:00",
+        "window_end": "2021-01-26T14:25:00+00:00",
+        "pageview_count": 42,
+    }
+    buffer = {"2021-01-26/14-24": [json.dumps(record)]}
+    flushed = flush_buffer(buffer, str(tmp_output_dir))
+    assert flushed == 1
+
+    file_path = tmp_output_dir / "2021-01-26" / "14-24.jsonl"
+    assert file_path.exists()
+    parsed = json.loads(file_path.read_text().strip())
+    assert parsed["pageview_count"] == 42

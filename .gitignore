@@ -1,0 +1,12 @@
+output/
+__pycache__/
+*.pyc
+.ruff_cache/
+.venv/
+*.egg-info/
+dist/
+.env.*
+!.env.example
+!.env.dev
+!.env.test
+PLAN.md

@@ -1,0 +1,33 @@
+[project]
+name = "checkout-streaming-pipeline"
+version = "0.1.0"
+description = "Real-time pageview pipeline: Kafka → ksqlDB → local filesystem"
+requires-python = ">=3.13"
+dependencies = [
+    "confluent-kafka>=2.6.0",
+    "prometheus-client>=0.21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8.0",
+    "testcontainers>=4.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast unit tests with no external dependencies",
+    "integration: end-to-end tests requiring Docker",
+]

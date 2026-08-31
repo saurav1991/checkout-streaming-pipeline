@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: producer
+    static_configs:
+      - targets: ["producer:8000"]
+
+  - job_name: raw-consumer
+    static_configs:
+      - targets: ["raw-consumer:8001"]
+
+  - job_name: agg-sink
+    static_configs:
+      - targets: ["agg-sink:8002"]
+
+  - job_name: kafka-exporter
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
