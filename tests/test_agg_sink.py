@@ -2,7 +2,8 @@ import json
 
 import pytest
 
-from src.agg_sink import agg_to_file_key, flush_buffer, parse_agg_record
+from src.agg_sink import agg_to_file_key, parse_agg_record
+from src.util.io import flush_buffer
 
 pytestmark = pytest.mark.unit
 

@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import signal
 import time
 from collections import defaultdict
@@ -22,6 +21,7 @@ from src.metrics import (
     agg_sink_records_total,
     start_metrics_server,
 )
+from src.util.io import flush_buffer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -46,19 +46,6 @@ def agg_to_file_key(record: dict) -> str:
     """Derive YYYY-MM-DD/HH-MM file key from window_start ISO string."""
     ws = datetime.fromisoformat(record["window_start"])
     return ws.strftime("%Y-%m-%d/%H-%M")
-
-
-def flush_buffer(buffer: dict[str, list[str]], base_path: str) -> int:
-    total = 0
-    for file_key, lines in buffer.items():
-        dir_path = os.path.join(base_path, os.path.dirname(file_key))
-        os.makedirs(dir_path, exist_ok=True)
-        file_path = os.path.join(base_path, f"{file_key}.jsonl")
-        with open(file_path, "a") as f:
-            for line in lines:
-                f.write(line + "\n")
-        total += len(lines)
-    return total
 
 
 def run():
@@ -99,8 +86,18 @@ def run():
             logger.error("Consumer error: %s", msg.error())
             continue
         else:
-            raw_value = msg.value().decode("utf-8")
-            record = parse_agg_record(raw_value)
+            if msg.value() is None:
+                continue
+            try:
+                raw_value = msg.value().decode("utf-8")
+                record = parse_agg_record(raw_value)
+            except (UnicodeDecodeError, json.JSONDecodeError, KeyError) as e:
+                logger.warning(
+                    "Skipping malformed message at offset %d: %s",
+                    msg.offset(),
+                    e,
+                )
+                continue
             file_key = agg_to_file_key(record)
             buffer[file_key].append(json.dumps(record))
             buffer_size += 1

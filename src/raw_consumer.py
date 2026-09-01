@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import signal
 import time
 from collections import defaultdict
@@ -22,6 +21,7 @@ from src.metrics import (
     raw_consumer_flushes_total,
     start_metrics_server,
 )
+from src.util.io import flush_buffer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,20 +32,6 @@ def event_to_file_key(event: dict) -> str:
     ts_ms = event.get("event_time", int(time.time() * 1000))
     dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
     return dt.strftime("%Y-%m-%d/%H-%M")
-
-
-def flush_buffer(buffer: dict[str, list[str]], base_path: str) -> int:
-    """Write buffered events to JSONL files. Returns number of events flushed."""
-    total = 0
-    for file_key, lines in buffer.items():
-        dir_path = os.path.join(base_path, os.path.dirname(file_key))
-        os.makedirs(dir_path, exist_ok=True)
-        file_path = os.path.join(base_path, f"{file_key}.jsonl")
-        with open(file_path, "a") as f:
-            for line in lines:
-                f.write(line + "\n")
-        total += len(lines)
-    return total
 
 
 def run():
@@ -86,8 +72,18 @@ def run():
             logger.error("Consumer error: %s", msg.error())
             continue
         else:
-            raw_value = msg.value().decode("utf-8")
-            event = json.loads(raw_value)
+            if msg.value() is None:
+                continue
+            try:
+                raw_value = msg.value().decode("utf-8")
+                event = json.loads(raw_value)
+            except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                logger.warning(
+                    "Skipping malformed message at offset %d: %s",
+                    msg.offset(),
+                    e,
+                )
+                continue
             file_key = event_to_file_key(event)
             buffer[file_key].append(raw_value)
             buffer_size += 1

@@ -2,7 +2,8 @@ import json
 
 import pytest
 
-from src.raw_consumer import event_to_file_key, flush_buffer
+from src.raw_consumer import event_to_file_key
+from src.util.io import flush_buffer
 
 pytestmark = pytest.mark.unit
 
