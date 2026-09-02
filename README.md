@@ -24,7 +24,7 @@ flowchart LR
 
 | Component | Description |
 |---|---|
-| **Kafka** | Single-broker KRaft cluster (no ZooKeeper). Hosts the `pageviews` source topic and `pageview_aggregates` output topic. 6 partitions, RF=1. |
+| **Kafka** | Single-broker KRaft cluster (no ZooKeeper). Hosts the `pageviews` source topic and `pageview_aggregates` output topic. 3 partitions, RF=1. |
 | **Producer** | Python service generating synthetic pageview events at a configurable rate. Events contain `user_id`, `postcode`, `webpage`, and `event_time` (epoch ms). |
 | **Raw Consumer** | Python service consuming from `pageviews` topic and writing raw events as JSONL files, partitioned by time (`YYYY-MM-DD/HH-MM.jsonl`). |
 | **ksqlDB** | Runs a persistent aggregation query: 1-minute tumbling window grouped by postcode with 30-second grace period, `EMIT FINAL`. |
