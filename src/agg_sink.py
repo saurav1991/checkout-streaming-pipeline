@@ -1,15 +1,12 @@
 import json
 import logging
-import signal
-import time
-from collections import defaultdict
 from datetime import datetime, timezone
 
 from confluent_kafka import Consumer, KafkaError
 
 from src.config import (
-    CONSUMER_FLUSH_BATCH_SIZE,
-    CONSUMER_FLUSH_INTERVAL_SECS,
+    AGG_SINK_FLUSH_BATCH_SIZE,
+    AGG_SINK_FLUSH_INTERVAL_SECS,
     KAFKA_BOOTSTRAP_SERVERS,
     KAFKA_TOPIC_AGGREGATES,
     OUTPUT_AGG_PATH,
@@ -21,7 +18,8 @@ from src.metrics import (
     agg_sink_records_total,
     start_metrics_server,
 )
-from src.util.io import flush_buffer
+from src.util.io import BatchBuffer
+from src.util.shutdown import GracefulShutdown
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -59,24 +57,18 @@ def run():
         }
     )
     consumer.subscribe([KAFKA_TOPIC_AGGREGATES])
-    running = True
+    shutdown = GracefulShutdown("agg sink")
 
-    def shutdown(signum, frame):
-        nonlocal running
-        logger.info("Shutting down agg sink...")
-        running = False
-
-    signal.signal(signal.SIGTERM, shutdown)
-    signal.signal(signal.SIGINT, shutdown)
-
-    buffer: dict[str, list[str]] = defaultdict(list)
-    buffer_size = 0
-    last_flush = time.monotonic()
+    buffer = BatchBuffer(
+        OUTPUT_AGG_PATH,
+        batch_size=AGG_SINK_FLUSH_BATCH_SIZE,
+        interval_secs=AGG_SINK_FLUSH_INTERVAL_SECS,
+    )
     total_written = 0
 
     logger.info("Agg sink started, writing to %s", OUTPUT_AGG_PATH)
 
-    while running:
+    while shutdown.running:
         msg = consumer.poll(timeout=1.0)
         if msg is None:
             pass
@@ -99,28 +91,21 @@ def run():
                 )
                 continue
             file_key = agg_to_file_key(record)
-            buffer[file_key].append(json.dumps(record))
-            buffer_size += 1
+            buffer.add(file_key, json.dumps(record))
             agg_sink_records_total.inc()
-            agg_sink_buffer_size.set(buffer_size)
+            agg_sink_buffer_size.set(len(buffer))
 
-        elapsed = time.monotonic() - last_flush
-        if buffer_size >= CONSUMER_FLUSH_BATCH_SIZE or (
-            buffer_size > 0 and elapsed >= CONSUMER_FLUSH_INTERVAL_SECS
-        ):
-            flushed = flush_buffer(buffer, OUTPUT_AGG_PATH)
+        if buffer.is_flush_due():
+            flushed = buffer.flush()
             consumer.commit(asynchronous=False)
             total_written += flushed
             agg_sink_flushes_total.inc()
             agg_sink_flush_size.observe(flushed)
             logger.info("Flushed %d aggregates (total: %d)", flushed, total_written)
-            buffer.clear()
-            buffer_size = 0
             agg_sink_buffer_size.set(0)
-            last_flush = time.monotonic()
 
-    if buffer_size > 0:
-        flushed = flush_buffer(buffer, OUTPUT_AGG_PATH)
+    if len(buffer) > 0:
+        flushed = buffer.flush()
         consumer.commit(asynchronous=False)
         total_written += flushed
         logger.info("Final flush: %d aggregates (total: %d)", flushed, total_written)

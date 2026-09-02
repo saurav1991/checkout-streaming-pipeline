@@ -69,8 +69,10 @@ All settings are managed via environment files (`.env.dev`, `.env.test`). See `.
 |---|---|---|
 | `KAFKA_BOOTSTRAP_SERVERS` | `kafka:29092` | Kafka broker address |
 | `PRODUCER_RATE` | `100` | Events per second |
-| `CONSUMER_FLUSH_INTERVAL_SECS` | `10` | Max seconds between flushes |
-| `CONSUMER_FLUSH_BATCH_SIZE` | `500` | Max events before flush |
+| `RAW_CONSUMER_FLUSH_INTERVAL_SECS` | `10` | Max seconds between raw flushes |
+| `RAW_CONSUMER_FLUSH_BATCH_SIZE` | `500` | Max events before a raw flush |
+| `AGG_SINK_FLUSH_INTERVAL_SECS` | `30` | Max seconds between aggregate flushes |
+| `AGG_SINK_FLUSH_BATCH_SIZE` | `50` | Max aggregates before a flush |
 | `OUTPUT_RAW_PATH` | `/app/output/raw` | Raw output directory |
 | `OUTPUT_AGG_PATH` | `/app/output/agg` | Aggregate output directory |
 | `METRICS_PORT` | `8000` | Prometheus metrics HTTP port |
@@ -103,7 +105,7 @@ The tests verify:
 - Aggregate JSONL files contain valid postcodes, positive counts, and 60-second window durations
 - Directory structure follows `YYYY-MM-DD/HH-MM.jsonl` naming
 
-Integration tests use `.env.test` with lower throughput settings (`PRODUCER_RATE=10`, `CONSUMER_FLUSH_INTERVAL_SECS=5`) for faster, quieter runs.
+Integration tests use `.env.test` with lower throughput settings (`PRODUCER_RATE=10`, `RAW_CONSUMER_FLUSH_INTERVAL_SECS=5`) for faster, quieter runs.
 
 ## Observability
 

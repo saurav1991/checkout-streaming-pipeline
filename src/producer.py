@@ -1,7 +1,6 @@
 import json
 import logging
 import random
-import signal
 import time
 
 from confluent_kafka import Producer
@@ -12,6 +11,7 @@ from src.metrics import (
     producer_events_total,
     start_metrics_server,
 )
+from src.util.shutdown import GracefulShutdown
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -92,15 +92,7 @@ def delivery_callback(err, msg):
 def run():
     start_metrics_server()
     producer = Producer({"bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS})
-    running = True
-
-    def shutdown(signum, frame):
-        nonlocal running
-        logger.info("Shutting down producer...")
-        running = False
-
-    signal.signal(signal.SIGTERM, shutdown)
-    signal.signal(signal.SIGINT, shutdown)
+    shutdown = GracefulShutdown("producer")
 
     interval = 1.0 / PRODUCER_RATE
     sent = 0
@@ -110,7 +102,7 @@ def run():
         KAFKA_TOPIC_PAGEVIEWS,
     )
 
-    while running:
+    while shutdown.running:
         event = generate_event()
         producer.produce(
             KAFKA_TOPIC_PAGEVIEWS,

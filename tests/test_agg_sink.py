@@ -3,7 +3,7 @@ import json
 import pytest
 
 from src.agg_sink import agg_to_file_key, parse_agg_record
-from src.util.io import flush_buffer
+from src.util.io import BatchBuffer
 
 pytestmark = pytest.mark.unit
 
@@ -26,15 +26,16 @@ def test_agg_to_file_key_midnight():
     assert agg_to_file_key(record) == "2021-01-26/00-00"
 
 
-def test_agg_flush_buffer(tmp_output_dir):
+def test_agg_flush(tmp_output_dir):
+    buf = BatchBuffer(str(tmp_output_dir), batch_size=100, interval_secs=30)
     record = {
         "postcode": "SW19",
         "window_start": "2021-01-26T14:24:00+00:00",
         "window_end": "2021-01-26T14:25:00+00:00",
         "pageview_count": 42,
     }
-    buffer = {"2021-01-26/14-24": [json.dumps(record)]}
-    flushed = flush_buffer(buffer, str(tmp_output_dir))
+    buf.add("2021-01-26/14-24", json.dumps(record))
+    flushed = buf.flush()
     assert flushed == 1
 
     file_path = tmp_output_dir / "2021-01-26" / "14-24.jsonl"

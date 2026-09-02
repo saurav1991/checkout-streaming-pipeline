@@ -1,18 +1,16 @@
 import json
 import logging
-import signal
 import time
-from collections import defaultdict
 from datetime import datetime, timezone
 
 from confluent_kafka import Consumer, KafkaError
 
 from src.config import (
-    CONSUMER_FLUSH_BATCH_SIZE,
-    CONSUMER_FLUSH_INTERVAL_SECS,
     KAFKA_BOOTSTRAP_SERVERS,
     KAFKA_TOPIC_PAGEVIEWS,
     OUTPUT_RAW_PATH,
+    RAW_CONSUMER_FLUSH_BATCH_SIZE,
+    RAW_CONSUMER_FLUSH_INTERVAL_SECS,
 )
 from src.metrics import (
     raw_consumer_buffer_size,
@@ -21,7 +19,8 @@ from src.metrics import (
     raw_consumer_flushes_total,
     start_metrics_server,
 )
-from src.util.io import flush_buffer
+from src.util.io import BatchBuffer
+from src.util.shutdown import GracefulShutdown
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -45,24 +44,18 @@ def run():
         }
     )
     consumer.subscribe([KAFKA_TOPIC_PAGEVIEWS])
-    running = True
+    shutdown = GracefulShutdown("raw consumer")
 
-    def shutdown(signum, frame):
-        nonlocal running
-        logger.info("Shutting down raw consumer...")
-        running = False
-
-    signal.signal(signal.SIGTERM, shutdown)
-    signal.signal(signal.SIGINT, shutdown)
-
-    buffer: dict[str, list[str]] = defaultdict(list)
-    buffer_size = 0
-    last_flush = time.monotonic()
+    buffer = BatchBuffer(
+        OUTPUT_RAW_PATH,
+        batch_size=RAW_CONSUMER_FLUSH_BATCH_SIZE,
+        interval_secs=RAW_CONSUMER_FLUSH_INTERVAL_SECS,
+    )
     total_written = 0
 
     logger.info("Raw consumer started, writing to %s", OUTPUT_RAW_PATH)
 
-    while running:
+    while shutdown.running:
         msg = consumer.poll(timeout=1.0)
         if msg is None:
             pass
@@ -85,29 +78,22 @@ def run():
                 )
                 continue
             file_key = event_to_file_key(event)
-            buffer[file_key].append(raw_value)
-            buffer_size += 1
+            buffer.add(file_key, raw_value)
             raw_consumer_events_total.inc()
-            raw_consumer_buffer_size.set(buffer_size)
+            raw_consumer_buffer_size.set(len(buffer))
 
-        elapsed = time.monotonic() - last_flush
-        if buffer_size >= CONSUMER_FLUSH_BATCH_SIZE or (
-            buffer_size > 0 and elapsed >= CONSUMER_FLUSH_INTERVAL_SECS
-        ):
-            flushed = flush_buffer(buffer, OUTPUT_RAW_PATH)
+        if buffer.is_flush_due():
+            flushed = buffer.flush()
             consumer.commit(asynchronous=False)
             total_written += flushed
             raw_consumer_flushes_total.inc()
             raw_consumer_flush_size.observe(flushed)
             logger.info("Flushed %d events (total: %d)", flushed, total_written)
-            buffer.clear()
-            buffer_size = 0
             raw_consumer_buffer_size.set(0)
-            last_flush = time.monotonic()
 
     # Final flush on shutdown
-    if buffer_size > 0:
-        flushed = flush_buffer(buffer, OUTPUT_RAW_PATH)
+    if len(buffer) > 0:
+        flushed = buffer.flush()
         consumer.commit(asynchronous=False)
         total_written += flushed
         logger.info("Final flush: %d events (total: %d)", flushed, total_written)
