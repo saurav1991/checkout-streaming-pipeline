@@ -10,6 +10,7 @@ pytestmark = pytest.mark.unit
 
 def test_parse_agg_record(sample_agg_record):
     result = parse_agg_record(json.dumps(sample_agg_record))
+    assert result["webpage"] == "www.example.com/index.html"
     assert result["postcode"] == "SW19"
     assert result["window_start"] == "2021-01-26T12:04:00+00:00"
     assert result["window_end"] == "2021-01-26T12:05:00+00:00"

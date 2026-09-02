@@ -33,6 +33,7 @@ def parse_agg_record(raw: str) -> dict:
     ws = datetime.fromtimestamp(window_start_ms / 1000, tz=timezone.utc)
     we = datetime.fromtimestamp(window_end_ms / 1000, tz=timezone.utc)
     return {
+        "webpage": record["WEBPAGE_VALUE"],
         "postcode": record["POSTCODE_VALUE"],
         "window_start": ws.isoformat(),
         "window_end": we.isoformat(),
