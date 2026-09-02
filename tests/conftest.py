@@ -15,6 +15,7 @@ def sample_event():
 def sample_agg_record():
     """Raw ksqlDB aggregate record (as it comes from the output topic)."""
     return {
+        "WEBPAGE_VALUE": "www.example.com/index.html",
         "POSTCODE_VALUE": "SW19",
         "WINDOW_START": 1611662640000,  # 2021-01-26T12:04:00Z in ms
         "WINDOW_END": 1611662700000,  # 2021-01-26T12:05:00Z in ms

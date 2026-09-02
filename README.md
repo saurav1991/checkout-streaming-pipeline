@@ -27,8 +27,8 @@ flowchart LR
 | **Kafka** | Single-broker KRaft cluster (no ZooKeeper). Hosts the `pageviews` source topic and `pageview_aggregates` output topic. 6 partitions, RF=1. |
 | **Producer** | Python service generating synthetic pageview events at a configurable rate. Events contain `user_id`, `postcode`, `webpage`, and `event_time` (epoch ms). |
 | **Raw Consumer** | Python service consuming from `pageviews` topic and writing raw events as JSONL files, partitioned by time (`YYYY-MM-DD/HH-MM.jsonl`). |
-| **ksqlDB** | Runs a persistent aggregation query: 1-minute tumbling window grouped by postcode with 30-second grace period, `EMIT FINAL`. |
-| **Agg Sink** | Python service consuming from `pageview_aggregates` topic and writing aggregated records as JSONL files with `postcode`, `window_start`, `window_end`, `pageview_count`. |
+| **ksqlDB** | Runs a persistent aggregation query: 1-minute tumbling window grouped by webpage and postcode with 30-second grace period, `EMIT FINAL`. |
+| **Agg Sink** | Python service consuming from `pageview_aggregates` topic and writing aggregated records as JSONL files with `webpage`, `postcode`, `window_start`, `window_end`, `pageview_count`. |
 | **Prometheus** | Scrapes metrics from all Python services and Kafka Exporter on a 15-second interval. |
 | **Kafka Exporter** | Exposes Kafka broker and consumer group lag metrics to Prometheus. |
 | **Grafana** | Pre-configured dashboard showing producer throughput, consumer lag, flush rates, and buffer sizes. |
@@ -58,7 +58,7 @@ docker compose --env-file .env.dev down
 
 ### Aggregated (`output/agg/YYYY-MM-DD/HH-MM.jsonl`)
 ```json
-{"postcode": "SW19", "window_start": "2026-08-31T16:01:00+00:00", "window_end": "2026-08-31T16:02:00+00:00", "pageview_count": 106}
+{"webpage": "www.example.com/index.html", "postcode": "SW19", "window_start": "2026-08-31T16:01:00+00:00", "window_end": "2026-08-31T16:02:00+00:00", "pageview_count": 106}
 ```
 
 ## Configuration
